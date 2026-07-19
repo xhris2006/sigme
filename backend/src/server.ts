@@ -60,12 +60,21 @@ app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.post("/api/auth/login", async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid login" });
-  const user = await prisma.adminUser.findUnique({ where: { email: parsed.data.email } });
-  if (!user || !(await bcrypt.compare(parsed.data.password, user.password))) {
-    return res.status(401).json({ error: "Invalid email or password" });
+
+  try {
+    const user = await prisma.adminUser.findUnique({ where: { email: parsed.data.email } });
+    if (!user || !(await bcrypt.compare(parsed.data.password, user.password))) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+    const publicUser = { id: user.id, email: user.email, name: user.name };
+    return res.json({ token: signToken(publicUser), user: publicUser });
+  } catch (error) {
+    console.error("Login error:", error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021") {
+      return res.status(500).json({ error: "Database is not initialized yet. Please run the database setup." });
+    }
+    return handleError(res, error);
   }
-  const publicUser = { id: user.id, email: user.email, name: user.name };
-  res.json({ token: signToken(publicUser), user: publicUser });
 });
 
 app.use("/api", requireAuth);
