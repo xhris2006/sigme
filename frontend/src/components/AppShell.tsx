@@ -6,6 +6,31 @@ import { Bell, Building2, ChevronDown, ClipboardCheck, Gem, LayoutDashboard, Log
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 
+type NotificationItem = {
+  id: string;
+  title: string;
+  message: string;
+  time: string;
+  unread: boolean;
+};
+
+const defaultNotifications: NotificationItem[] = [
+  { id: "n1", title: "Rapport disponible", message: "Le rapport mensuel de conformité a été généré.", time: "Il y a 10 min", unread: true },
+  { id: "n2", title: "Inspection à venir", message: "2 inspections sont prévues aujourd’hui sur le site de Kribi.", time: "Il y a 1 h", unread: true },
+  { id: "n3", title: "Mise à jour du système", message: "Les paramètres de notification ont été synchronisés.", time: "Hier", unread: false }
+];
+
+function readNotifications() {
+  if (typeof window === "undefined") return defaultNotifications;
+  const raw = window.localStorage.getItem("sigem_notifications");
+  if (!raw) return defaultNotifications;
+  try {
+    return JSON.parse(raw) as NotificationItem[];
+  } catch {
+    return defaultNotifications;
+  }
+}
+
 const nav = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/enterprises", label: "Entreprises", icon: Building2 },
@@ -19,7 +44,8 @@ const titles: Record<string, string> = {
   enterprises: "Entreprises",
   sites: "Sites miniers",
   permits: "Permis",
-  inspections: "Inspections"
+  inspections: "Inspections",
+  settings: "Paramètres"
 };
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -27,12 +53,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { token, loading, user, logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const isLogin = pathname === "/login";
 
   useEffect(() => {
     if (!loading && !token && !isLogin) router.replace("/login");
     if (!loading && token && isLogin) router.replace("/dashboard");
   }, [isLogin, loading, router, token]);
+
+  useEffect(() => {
+    setNotifications(readNotifications());
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") window.localStorage.setItem("sigem_notifications", JSON.stringify(notifications));
+  }, [notifications]);
+
+  useEffect(() => {
+    const handleNotify = () => {
+      const next = readNotifications();
+      setNotifications(next);
+    };
+    window.addEventListener("sigem:notify", handleNotify);
+    return () => window.removeEventListener("sigem:notify", handleNotify);
+  }, []);
+
+  const unreadCount = notifications.filter((item) => item.unread).length;
 
   if (loading) {
     return <div className="grid min-h-screen place-items-center bg-ministry-pale text-sm text-slate-600">Chargement...</div>;
@@ -58,10 +105,41 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Search className="pointer-events-none absolute right-4 top-3.5 text-slate-500" size={18} />
             <input className="focus-ring h-12 w-full rounded-xl border border-slate-100 bg-slate-50/90 px-4 pr-11 text-sm text-slate-700 shadow-sm" placeholder="Rechercher..." />
           </label>
-          <button className="focus-ring relative rounded-xl p-2.5 text-ministry-navy hover:bg-slate-100" aria-label="Notifications">
-            <Bell size={21} />
-            <span className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-ministry-blue text-[10px] font-bold text-white">3</span>
-          </button>
+          <div className="relative">
+            <button className="focus-ring relative rounded-xl p-2.5 text-ministry-navy hover:bg-slate-100" aria-label="Notifications" onClick={() => setShowNotifications((value) => !value)}>
+              <Bell size={21} />
+              {unreadCount > 0 ? <span className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-ministry-blue text-[10px] font-bold text-white">{unreadCount}</span> : null}
+            </button>
+            {showNotifications ? (
+              <div className="absolute right-0 top-14 z-50 w-80 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl">
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-extrabold text-ministry-navy">Notifications</p>
+                    <p className="text-xs text-slate-500">{unreadCount} non lues</p>
+                  </div>
+                  <button className="text-xs font-semibold text-ministry-blue" onClick={() => setNotifications((items) => items.map((item) => ({ ...item, unread: false })))}>
+                    Tout marquer lu
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {notifications.length === 0 ? (
+                    <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">Aucune notification pour le moment.</div>
+                  ) : notifications.map((item) => (
+                    <button key={item.id} className="w-full rounded-xl border border-slate-100 bg-slate-50/80 p-3 text-left" onClick={() => setNotifications((items) => items.map((entry) => entry.id === item.id ? { ...entry, unread: false } : entry))}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-ministry-navy">{item.title}</p>
+                          <p className="mt-1 text-xs text-slate-600">{item.message}</p>
+                        </div>
+                        {item.unread ? <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-ministry-blue" /> : null}
+                      </div>
+                      <p className="mt-2 text-[11px] text-slate-400">{item.time}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
           <div className="hidden h-8 w-px bg-slate-200 sm:block" />
           <div className="hidden items-center gap-3 sm:flex">
             <div className="grid h-11 w-11 place-items-center rounded-full bg-slate-200 text-slate-500">
@@ -138,9 +216,9 @@ function ShellNav({ pathname, user, logout }: { pathname: string; user?: string;
           );
         })}
         <div className="pt-2">
-          <div className="flex items-center gap-4 rounded-xl px-4 py-3.5 text-[15px] font-semibold text-white/88">
-            <Settings size={20} /> Parametres
-          </div>
+          <Link href="/settings" className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-[15px] font-semibold transition ${pathname.startsWith("/settings") ? "bg-ministry-blue text-white shadow-[0_12px_30px_rgba(37,99,235,0.35)]" : "text-white/88 hover:bg-white/10"}`}>
+            <Settings size={20} /> Paramètres
+          </Link>
         </div>
       </div>
       <div className="mt-auto rounded-xl border-t border-white/10 bg-white/5 p-4">
