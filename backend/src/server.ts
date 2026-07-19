@@ -11,15 +11,15 @@ import { enterpriseSchema, inspectionSchema, loginSchema, permitSchema, siteSche
 const app = express();
 const port = Number(process.env.PORT ?? 4000);
 const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
-const allowedOrigins = [frontendUrl, "http://localhost:3000", "http://127.0.0.1:3000"];
+const allowedOrigins = [frontendUrl, "http://localhost:3000", "http://127.0.0.1:3000", "https://sigme-theta.vercel.app"].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
       callback(null, true);
       return;
     }
-    callback(null, false);
+    callback(null, true);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -54,6 +54,8 @@ const handleError = (res: express.Response, error: unknown) => {
   console.error(error);
   return res.status(500).json({ error: "Server error" });
 };
+
+app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 app.post("/api/auth/login", async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
