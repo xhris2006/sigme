@@ -275,7 +275,7 @@ app.get("/api/dashboard/stats", async (_req, res) => {
   const [enterprises, activeSites, permits, inspectionsThisMonth, siteCompliance, latestInspections] = await Promise.all([
     prisma.enterprise.count(),
     prisma.miningSite.count({ where: { status: "ACTIVE" } }),
-    prisma.permit.findMany({ include: { enterprise: true, site: true } }),
+    prisma.permit.findMany({ orderBy: { createdAt: "desc" }, include: { enterprise: true, site: true } }),
     prisma.inspection.count({ where: { inspectionDate: { gte: monthStart } } }),
     prisma.inspection.findMany({ orderBy: { inspectionDate: "desc" }, distinct: ["siteId"] }),
     prisma.inspection.findMany({ take: 5, orderBy: { inspectionDate: "desc" }, include: { site: true } })
