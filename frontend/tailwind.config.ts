@@ -6,14 +6,15 @@ const config: Config = {
     extend: {
       colors: {
         ministry: {
-          navy: "#0b1f3a",
-          blue: "#153e75",
-          gold: "#c08a1a",
-          pale: "#f6f8fb"
+          navy: "#061b3a",
+          blue: "#2463eb",
+          gold: "#f4b321",
+          pale: "#f5f8fd"
         }
       },
       boxShadow: {
-        panel: "0 18px 45px rgba(11, 31, 58, 0.08)"
+        panel: "0 18px 45px rgba(15, 23, 42, 0.07)",
+        soft: "0 20px 70px rgba(15, 23, 42, 0.10)"
       }
     }
   },
