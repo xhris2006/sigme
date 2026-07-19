@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Enterprise {
+  id                  String           @id @default(cuid())
+  name                String
+  registrationNumber  String           @unique
+  legalRepresentative String
+  email               String?
+  phone               String
+  address             String
+  region              String
+  status              EnterpriseStatus @default(ACTIVE)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  sites               MiningSite[]
+  permits             Permit[]
+}
+
+enum EnterpriseStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+model MiningSite {
+  id           String       @id @default(cuid())
+  name         String
+  region       String
+  locality     String?
+  latitude     Float?
+  longitude    Float?
+  mineralType  String
+  areaHectares Float?
+  status       SiteStatus   @default(ACTIVE)
+  enterpriseId String
+  enterprise   Enterprise   @relation(fields: [enterpriseId], references: [id])
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  permits      Permit[]
+  inspections  Inspection[]
+}
+
+enum SiteStatus {
+  ACTIVE
+  INACTIVE
+  UNDER_REVIEW
+  CLOSED
+}
+
+model Permit {
+  id           String       @id @default(cuid())
+  permitNumber String       @unique
+  type         PermitType
+  startDate    DateTime
+  endDate      DateTime
+  status       PermitStatus @default(PENDING)
+  notes        String?
+  enterpriseId String
+  enterprise   Enterprise   @relation(fields: [enterpriseId], references: [id])
+  siteId       String?
+  site         MiningSite?  @relation(fields: [siteId], references: [id])
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+enum PermitType {
+  EXPLORATION
+  EXPLOITATION
+  ARTISANAL
+  INDUSTRIAL
+}
+
+enum PermitStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+model Inspection {
+  id               String           @id @default(cuid())
+  siteId           String
+  site             MiningSite       @relation(fields: [siteId], references: [id])
+  inspectorName    String
+  inspectionDate   DateTime
+  complianceStatus ComplianceStatus
+  findings         String
+  followUpActions  String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+enum ComplianceStatus {
+  COMPLIANT
+  NON_COMPLIANT
+  PENDING_REVIEW
+}
+
+model AdminUser {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+}
